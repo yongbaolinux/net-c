@@ -1,16 +1,19 @@
+#include<stdlib.h>
 #include<memory.h>
 #include<netinet/ip_icmp.h>
+#include<sys/socket.h>
+#include<netdb.h>
 
 #define PACKAGE_LENGTH 64 //the length of icmp package
 #define SEND_PACKAGE_COUNT 3 //the mount of sent packge
 
 u_int16_t f_checksum(struct icmphdr* icmp);
 u_int32_t sockfd;
-
+struct sockaddr_in hostsockaddr;//IPv4 protocol structure
+char icmp[PACKAGE_LENGTH];
 
 //initial the icmp package
 void init_icmp(u_int16_t sequence){
-	char icmp[PACKAGE_LENGTH];
 	memset(icmp,'a',PACKAGE_LENGTH);
 	struct icmphdr* p_icmp = (struct icmphdr*) icmp;
 	p_icmp->type = ICMP_ECHO;
@@ -39,13 +42,32 @@ u_int16_t f_checksum(struct icmphdr* icmp){
 }
 //send the icmp package
 void send_icmp(){
-	for(int i=0;i<SEND_PACKAGE_COUNT;i++){
+	int i;	
+	for(i=0;i<SEND_PACKAGE_COUNT;i++){
 		init_icmp(i);
+		sendto(sockfd,icmp,PACKAGE_LENGTH,0,(struct sockaddr*)&hostsockaddr,sizeof(struct sockaddr));
 	}
 }
 
 void main(char** args,int argc){
-	sockfd = sock
+	struct protoent * protocol;
+	if((protocol = getprotobyname("icmp")) == NULL){
+		perror("Fail to call getprotobyanme");
+		exit(EXIT_FAILURE);
+	}
+	sockfd = socket(AF_INET,SOCK_RAW,protocol->p_proto);
+	if(sockfd){
+		perror("Fail to open socket");
+		exit(EXIT_FAILURE);
+	}
 
-
+	//initial the sockaddr
+	bzero(&hostsockaddr,sizeof(hostsockaddr));
+	hostsockaddr.sin_family = AF_INET;
+	u_int32_t net = inet_addr(args[1]);
+	hostsockaddr.sin_addr.s_addr = net;
+	send_icmp();
+	
 }
+
+
