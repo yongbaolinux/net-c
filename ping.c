@@ -1,3 +1,4 @@
+#include<stdio.h>
 #include<stdlib.h>
 #include<memory.h>
 #include<netinet/ip_icmp.h>
@@ -33,6 +34,7 @@ u_int16_t f_checksum(struct icmphdr* icmp){
 	u_int16_t index = PACKAGE_LENGTH;
 	while(index > 0){
 		sum+=*p_int++;
+		index-=2;				//lack of this line will case segmentation fault
 	}
 	while(sum >> 16){
 		sum=(sum>>16) + (sum & 0xffff);
@@ -49,14 +51,14 @@ void send_icmp(){
 	}
 }
 
-void main(char** args,int argc){
+void main(int argc,char *args[]){
 	struct protoent * protocol;
 	if((protocol = getprotobyname("icmp")) == NULL){
 		perror("Fail to call getprotobyanme");
 		exit(EXIT_FAILURE);
 	}
 	sockfd = socket(AF_INET,SOCK_RAW,protocol->p_proto);
-	if(sockfd){
+	if(sockfd < 0){
 		perror("Fail to open socket");
 		exit(EXIT_FAILURE);
 	}
@@ -64,7 +66,7 @@ void main(char** args,int argc){
 	//initial the sockaddr
 	bzero(&hostsockaddr,sizeof(hostsockaddr));
 	hostsockaddr.sin_family = AF_INET;
-	u_int32_t net = inet_addr(args[1]);
+	u_int64_t net = inet_addr(args[1]);
 	hostsockaddr.sin_addr.s_addr = net;
 	send_icmp();
 	
