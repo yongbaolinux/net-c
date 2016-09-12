@@ -4,14 +4,17 @@
 #include<netinet/ip_icmp.h>
 #include<sys/socket.h>
 #include<netdb.h>
+#include<sys/time.h>
 
 #define PACKAGE_LENGTH 64 //the length of icmp package
-#define SEND_PACKAGE_COUNT 3 //the mount of sent packge
+#define SEND_PACKAGE_COUNT 1 //the mount of sent packge
 
 u_int16_t f_checksum(struct icmphdr* icmp);
+void unpack_icmp(char*);
 u_int32_t sockfd;
 struct sockaddr_in hostsockaddr;//IPv4 protocol structure
 char icmp[PACKAGE_LENGTH];
+char receive[PACKAGE_LENGTH];
 
 //initial the icmp package
 void init_icmp(u_int16_t sequence){
@@ -23,8 +26,16 @@ void init_icmp(u_int16_t sequence){
 	p_icmp->un.echo.id = getpid();
 	p_icmp->un.echo.sequence = sequence;
 	
+	u_int32_t * p_time = (u_int32_t *)p_icmp;
+	p_time = p_time + 2;
+	if(gettimeofday((struct timeval*)p_time,NULL) < 0){
+		printf("Failure to call gettimeofday");
+		exit(EXIT_FAILURE);
+	}
+	//printf("%1d\n",p_timeval->tv_sec);	
 	u_int16_t checksum = f_checksum((struct icmphdr*)icmp);
 	p_icmp->checksum = checksum;
+	
 }
 
 //check the sum
@@ -68,8 +79,25 @@ void main(int argc,char *args[]){
 	hostsockaddr.sin_family = AF_INET;
 	u_int64_t net = inet_addr(args[1]);
 	hostsockaddr.sin_addr.s_addr = net;
-	send_icmp();
+	int i;
+	for(i=0;i<SEND_PACKAGE_COUNT;i++){
+		init_icmp(i);
+		sendto(sockfd,icmp,PACKAGE_LENGTH,0,(struct sockaddr*)&hostsockaddr,sizeof(struct sockaddr));
+		int sockaddr_len = sizeof(struct sockaddr);
+		struct sockaddr from_addr;
+		if(recvfrom(sockfd,receive,sizeof(receive),0,&from_addr,&sockaddr_len) < 0){
+			printf("Fail to receive data");
+			exit(EXIT_FAILURE);
+		}
+		unpack_icmp(receive);
+	}
 	
 }
-
+void unpack_icmp(char* receive){
+	int i;
+	for(i=0;i<1;i++){
+		//printf("%x",*receive++);
+		printf("%x",sizeof(receive[4]));
+	}
+}
 
