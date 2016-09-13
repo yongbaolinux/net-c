@@ -7,10 +7,12 @@
 #include<sys/time.h>
 
 #define PACKAGE_LENGTH 64 //the length of icmp package
-#define SEND_PACKAGE_COUNT 1 //the mount of sent packge
+#define SEND_PACKAGE_COUNT 3 //the mount of sent packge
+#define ICMP_HEADER_LENGTH 8	//the length of icmp package header
 
 u_int16_t f_checksum(struct icmphdr* icmp);
-void unpack_icmp(char*);
+u_int32_t unpack_icmp(char*);
+
 u_int32_t sockfd;
 struct sockaddr_in hostsockaddr;//IPv4 protocol structure
 char icmp[PACKAGE_LENGTH];
@@ -63,6 +65,10 @@ void send_icmp(){
 }
 
 void main(int argc,char *args[]){
+	if(argc < 2){
+		perror("the lack of the host parameter");
+		exit(EXIT_FAILURE);
+	}
 	struct protoent * protocol;
 	if((protocol = getprotobyname("icmp")) == NULL){
 		perror("Fail to call getprotobyanme");
@@ -89,15 +95,26 @@ void main(int argc,char *args[]){
 			printf("Fail to receive data");
 			exit(EXIT_FAILURE);
 		}
-		unpack_icmp(receive);
+		u_int32_t time_interval = unpack_icmp(receive);
+		printf("From %s : package size=%d timeval=%ldms\n",args[1],sizeof(receive),time_interval);
+		sleep(1);
 	}
 	
 }
-void unpack_icmp(char* receive){
-	int i;
-	for(i=0;i<1;i++){
-		//printf("%x",*receive++);
-		printf("%x",sizeof(receive[4]));
-	}
+u_int32_t unpack_icmp(char receive[]){
+	//int i;
+	//for(i=0;i<PACKAGE_LENGTH;i++){
+		//printf("%2x",(unsigned char)*receive++);
+		
+	//}
+	//get the length of IP package header
+	u_int32_t ip_header_length=0;
+	ip_header_length = (receive[0] & 0x0f) * 4;
+	struct timeval* send_timeval = (struct timeval*)(receive + ip_header_length + ICMP_HEADER_LENGTH);
+	struct timeval now_timeval;
+	gettimeofday(&now_timeval,NULL);
+	
+	u_int32_t time_interval = (now_timeval.tv_sec*1000 + (int)now_timeval.tv_usec/1000) - (send_timeval->tv_sec*1000 + (int)send_timeval->tv_usec/1000);
+	return time_interval;
 }
 
